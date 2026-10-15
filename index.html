@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#172554">
+  <title>ClimaView | Dashboard Meteorológico</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="ClimaView - página inicial">
+      <span class="brand-icon" aria-hidden="true">☁</span>
+      <span>Clima<span class="brand-light">View</span></span>
+    </a>
+    <div class="header-actions">
+      <span class="live-indicator"><span class="dot" aria-hidden="true"></span> Painel meteorológico</span>
+      <button id="themeToggle" class="icon-button" type="button" aria-label="Ativar modo escuro" title="Alternar tema">☾</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">INFORMAÇÕES EM TEMPO REAL</p>
+        <h1>Clima, de um jeito <span>mais inteligente.</span></h1>
+        <p class="hero-description">Consulte as condições meteorológicas e acompanhe os dados enviados pelo MQTT.</p>
+      </div>
+      <div class="hero-symbol" aria-hidden="true">🌤️</div>
+    </section>
+
+    <section class="search-panel panel" aria-labelledby="searchTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">CONSULTA</p>
+          <h2 id="searchTitle">Escolha uma localização</h2>
+        </div>
+        <span id="lastUpdate" class="last-update">Última atualização: —</span>
+      </div>
+      <form id="searchForm" class="search-form">
+        <div class="field city-field">
+          <label for="cityInput">Cidade</label>
+          <input id="cityInput" name="city" type="text" placeholder="Ex.: São Carlos" autocomplete="off" required aria-describedby="searchHelp">
+          <small id="searchHelp">Digite o nome da cidade em que deseja consultar o clima.</small>
+        </div>
+        <div class="field country-field">
+          <label for="countrySelect">País</label>
+          <select id="countrySelect" name="country">
+            <option value="BR" selected>Brasil (BR)</option>
+            <option value="US">Estados Unidos (US)</option>
+            <option value="PT">Portugal (PT)</option>
+            <option value="AR">Argentina (AR)</option>
+            <option value="CL">Chile (CL)</option>
+          </select>
+        </div>
+        <button id="searchButton" class="primary-button" type="submit"><span aria-hidden="true">⌕</span> Consultar clima</button>
+      </form>
+      <p id="statusMessage" class="status-message" role="status" aria-live="polite">Informe uma cidade para começar.</p>
+    </section>
+
+    <section class="weather-section" aria-labelledby="weatherTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">RESUMO METEOROLÓGICO</p>
+          <h2 id="weatherTitle">Condições atuais</h2>
+        </div>
+        <button id="favoriteButton" class="secondary-button" type="button" disabled>☆ Salvar favorita</button>
+      </div>
+
+      <div class="weather-grid">
+        <article class="metric-card featured-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">🌡️</span><span class="metric-label">Temperatura</span></div>
+          <p id="temperature" class="metric-value">—<span> °C</span></p>
+          <p id="weatherDescription" class="metric-note">Aguardando consulta</p>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">💧</span><span class="metric-label">Umidade</span></div>
+          <p id="humidity" class="metric-value">—<span> %</span></p>
+          <p class="metric-note">Umidade relativa do ar</p>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">🌬️</span><span class="metric-label">Vento</span></div>
+          <p id="wind" class="metric-value">—<span> km/h</span></p>
+          <p id="windDirection" class="metric-note">Velocidade do vento</p>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">🌡</span><span class="metric-label">Sensação térmica</span></div>
+          <p id="feelsLike" class="metric-value">—<span> °C</span></p>
+          <p class="metric-note">Como a temperatura é percebida</p>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">↘</span><span class="metric-label">Mínima / Máxima</span></div>
+          <p id="minMax" class="metric-value compact">— / —<span> °C</span></p>
+          <p class="metric-note">Temperaturas do período atual</p>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">◉</span><span class="metric-label">Pressão</span></div>
+          <p id="pressure" class="metric-value">—<span> hPa</span></p>
+          <p class="metric-note">Pressão atmosférica</p>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">📍</span><span class="metric-label">Localização</span></div>
+          <p id="location" class="metric-value location-value">—</p>
+          <p class="metric-note">Cidade consultada</p>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span class="metric-icon" aria-hidden="true">🌅</span><span class="metric-label">Sol</span></div>
+          <p id="sunTimes" class="metric-value compact">— / —</p>
+          <p class="metric-note">Nascer / pôr do sol</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel chart-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">ACOMPANHAMENTO</p>
+            <h2>Histórico de leituras</h2>
+          </div>
+          <span class="chart-tag">Até 12 consultas</span>
+        </div>
+        <p class="panel-description">Compare temperatura e umidade das consultas realizadas nesta sessão.</p>
+        <div class="chart-wrap"><canvas id="weatherChart" role="img" aria-label="Gráfico de linhas com temperatura e umidade das consultas recentes"></canvas></div>
+      </article>
+
+      <aside class="side-column">
+        <article class="panel mqtt-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">COMUNICAÇÃO</p>
+              <h2>Conexão MQTT</h2>
+            </div>
+            <span id="mqttBadge" class="connection-badge disconnected"><span class="dot" aria-hidden="true"></span><span id="mqttStatus">Desconectado</span></span>
+          </div>
+          <p class="panel-description">Status da comunicação com o broker HiveMQ público.</p>
+          <div class="mqtt-detail"><span>Broker</span><strong>HiveMQ WebSocket</strong></div>
+          <div class="mqtt-detail"><span>Última mensagem</span><strong id="mqttLastMessage">Nenhuma</strong></div>
+          <div class="mqtt-detail"><span>Tópicos</span><strong>Clima / Cidade</strong></div>
+        </article>
+
+        <article class="panel favorite-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">ACESSO RÁPIDO</p>
+              <h2>Minha cidade favorita</h2>
+            </div>
+            <span aria-hidden="true">☆</span>
+          </div>
+          <p id="favoriteCity" class="favorite-city">Nenhuma cidade salva</p>
+          <button id="loadFavoriteButton" class="secondary-button full-button" type="button" disabled>Consultar favorita</button>
+        </article>
+      </aside>
+    </section>
+
+    <section class="panel history-panel" aria-labelledby="historyTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">CONSULTAS RECENTES</p>
+          <h2 id="historyTitle">Histórico de cidades</h2>
+        </div>
+        <button id="clearHistoryButton" class="text-button" type="button">Limpar histórico</button>
+      </div>
+      <div id="historyList" class="history-list"><p class="empty-state">As cidades consultadas aparecerão aqui.</p></div>
+    </section>
+
+    <footer class="footer">
+      <span>ClimaView · Dashboard Meteorológico</span>
+      <span>Dados meteorológicos fornecidos pela OpenWeatherMap</span>
+    </footer>
+  </main>
+</body>
+</html>
